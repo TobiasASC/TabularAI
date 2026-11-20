@@ -1,4 +1,4 @@
-package com.tabularai.tabularai;
+package com.tabularai;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
