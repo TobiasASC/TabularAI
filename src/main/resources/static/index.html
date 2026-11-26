@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TabularAI — Motor Inteligente de Análisis de Datasets</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="container navbar-content">
+            <div class="brand">
+                <span class="brand-badge">AI</span>
+                <div>
+                    <h1>TabularAI</h1>
+                    <p>Cálculo estadístico determinista (Java) + Diagnóstico semántico (Spring AI &amp; Groq)</p>
+                </div>
+            </div>
+            <a href="/swagger-ui/index.html" target="_blank" class="btn btn-outline">Swagger API Docs ↗</a>
+        </div>
+    </header>
+
+    <main class="container main-grid">
+        <!-- Columna Izquierda: Subida de CSV e Historial -->
+        <aside class="sidebar">
+            <!-- Tarjeta 1: Subir nuevo CSV -->
+            <section class="card">
+                <h2>1. Subir nuevo Dataset (CSV)</h2>
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label for="csvFile">Archivo CSV (máx. 5 MB / 5.000 filas)</label>
+                        <input type="file" id="csvFile" name="file" accept=".csv" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userContext">Enfoque o pregunta inicial (opcional)</label>
+                        <textarea id="userContext" name="context" rows="3" maxlength="500"
+                            placeholder="Ej: Analiza tendencias de ventas, busca valores atípicos en precios y problemas de calidad..."></textarea>
+                    </div>
+                    <button type="submit" id="uploadBtn" class="btn btn-primary btn-block">
+                        Analizar Dataset con IA
+                    </button>
+                </form>
+            </section>
+
+            <!-- Tarjeta 2: Historial de Datasets -->
+            <section class="card">
+                <div class="card-header-inline">
+                    <h2>Historial de Datasets</h2>
+                    <button id="refreshHistoryBtn" class="btn btn-sm btn-outline" title="Recargar historial">↻</button>
+                </div>
+                <div id="datasetHistoryList" class="history-list">
+                    <p class="muted-text">Cargando historial...</p>
+                </div>
+            </section>
+        </aside>
+
+        <!-- Columna Derecha: Resultados (Perfiles Estadísticos y Reportes IA) -->
+        <section class="content-area">
+            <!-- Banner de error / notificación -->
+            <div id="alertBox" class="alert hidden"></div>
+
+            <!-- Estado inicial vacío -->
+            <div id="emptyState" class="card empty-state">
+                <h3>Ningún dataset seleccionado</h3>
+                <p>Sube un archivo CSV en el panel izquierdo o selecciona un dataset del historial para visualizar su radiografía matemática y los diagnósticos de IA.</p>
+            </div>
+
+            <!-- Contenedor de detalle del Dataset activo -->
+            <div id="datasetDetail" class="hidden">
+                <!-- Encabezado con metadatos del Dataset -->
+                <div class="card dataset-header-card">
+                    <div class="dataset-title-row">
+                        <div>
+                            <span class="status-badge" id="detailStatus">COMPLETED</span>
+                            <h2 id="detailFilename">archivo.csv</h2>
+                            <p class="muted-text" id="detailMeta">ID: #1 • Creado: -</p>
+                        </div>
+                        <button id="deleteDatasetBtn" class="btn btn-danger btn-sm">Eliminar Dataset</button>
+                    </div>
+                    <div class="metrics-bar">
+                        <div class="metric-item">
+                            <span class="metric-label">Filas procesadas</span>
+                            <strong class="metric-value" id="detailRows">0</strong>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Columnas detectadas</span>
+                            <strong class="metric-value" id="detailCols">0</strong>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Tamaño del archivo</span>
+                            <strong class="metric-value" id="detailSize">0 KB</strong>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Reportes IA generados</span>
+                            <strong class="metric-value" id="detailReportCount">0</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla del Motor Determinista: Column Profiles -->
+                <div class="card">
+                    <h2>2. Radiografía Estadística por Columna (Motor Determinista Java)</h2>
+                    <p class="section-subtitle">Métricas exactas calculadas en memoria con Apache Commons CSV antes de consultar al LLM.</p>
+                    <div class="table-responsive">
+                        <table class="profiles-table">
+                            <thead>
+                                <tr>
+                                    <th>Columna</th>
+                                    <th>Tipo Inferido</th>
+                                    <th>Nulos</th>
+                                    <th>Únicos</th>
+                                    <th>Mínimo</th>
+                                    <th>Máximo</th>
+                                    <th>Promedio (Mean)</th>
+                                    <th>Mediana (Median)</th>
+                                    <th>Top 5 Frecuencias</th>
+                                </tr>
+                            </thead>
+                            <tbody id="profilesTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sección del Motor Semántico: Reportes de Spring AI + Formulario para nuevo enfoque -->
+                <div class="card">
+                    <div class="card-header-inline">
+                        <div>
+                            <h2>3. Diagnósticos Semánticos (Spring AI + Groq)</h2>
+                            <p class="section-subtitle">Puedes solicitar nuevos reportes con distintos enfoques sobre este mismo dataset sin volver a subir el archivo.</p>
+                        </div>
+                    </div>
+
+                    <!-- Formulario para generar un reporte adicional sobre el mismo dataset -->
+                    <form id="newReportForm" class="new-report-box">
+                        <input type="text" id="newReportContext" maxlength="500" required
+                            placeholder="Escribe un nuevo enfoque (ej: 'Auditoría de datos nulos y recomendaciones de limpieza' o 'Resumen ejecutivo comercial')...">
+                        <button type="submit" id="newReportBtn" class="btn btn-primary">
+                            + Nuevo Reporte IA
+                        </button>
+                    </form>
+
+                    <!-- Lista de tarjetas de reportes IA -->
+                    <div id="aiReportsContainer" class="reports-stack">
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

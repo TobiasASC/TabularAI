@@ -181,6 +181,34 @@ class StatsEngineServiceTest {
         assertTrue(observacionesProfile.getTopValues().isEmpty());
     }
 
+    @Test
+    @DisplayName("Debe detectar punto y coma (;), timestamps con milisegundos agrupados por día y literales NULL de SQL Server")
+    void shouldHandleSqlServerCsvWithTimestampsAndNullLiterals() throws IOException {
+        String sqlServerCsv = "\uFEFFid_venta;creado_en;actualizado_en\n"
+                + "5;2026-02-04 08:50:00.000;NULL\n"
+                + "7;2026-02-04 08:50:00.000;NULL\n"
+                + "15;2026-11-16 23:02:00.537;2026-11-16 23:02:00.537\n"
+                + "16;2026-11-16 23:15:25.920;2026-11-16 23:15:25.920\n"
+                + "17;2026-11-16 23:15:43.010;2026-11-16 23:15:43.010\n";
+
+        List<ColumnProfile> profiles = statsEngineService.analyze(toInputStream(sqlServerCsv));
+
+        assertEquals(3, profiles.size());
+
+        // creado_en debe ser DATE y agrupar topValues por día (2026-11-16 tiene 3 ventas aunque tengan distintos milisegundos)
+        ColumnProfile creadoEn = profiles.get(1);
+        assertEquals(ColumnDataType.DATE, creadoEn.getDataType());
+        assertEquals(0, creadoEn.getNullCount());
+        assertEquals(3L, creadoEn.getTopValues().get("2026-11-16"));
+        assertEquals(2L, creadoEn.getTopValues().get("2026-02-04"));
+
+        // actualizado_en debe contar "NULL" como nulo (2) y clasificarse también como DATE
+        ColumnProfile actualizadoEn = profiles.get(2);
+        assertEquals(ColumnDataType.DATE, actualizadoEn.getDataType());
+        assertEquals(2, actualizadoEn.getNullCount());
+        assertEquals(3L, actualizadoEn.getTopValues().get("2026-11-16"));
+    }
+
     private InputStream toInputStream(String content) {
         return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
     }

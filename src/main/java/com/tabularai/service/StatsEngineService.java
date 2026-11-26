@@ -1,9 +1,10 @@
 package com.tabularai.service;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -32,6 +33,9 @@ public class StatsEngineService {
     // Cantidad máxima de valores frecuentes a guardar en columnas no numéricas
     private static final int TOP_VALUES_LIMIT = 5;
 
+    // Carácter invisible BOM (Byte Order Mark) que suelen agregar SQL Server Management Studio y Excel al inicio del CSV
+    private static final String UTF8_BOM = "\uFEFF";
+
     // Formatos de fecha soportados para la detección automática de columnas tipo DATE
     private static final List<DateTimeFormatter> DATE_FORMATTERS = List.of(
             DateTimeFormatter.ISO_LOCAL_DATE,
@@ -41,16 +45,18 @@ public class StatsEngineService {
     );
 
     /**
-     * Lee un archivo CSV desde un InputStream, agrupa sus valores por columna (transposición)
-     * y genera el perfil estadístico (ColumnProfile) de cada una.
+     * Lee un archivo CSV desde un InputStream, detecta automáticamente su delimitador (',', ';' o '\t'),
+     * agrupa sus valores por columna (transposición) y genera el perfil estadístico (ColumnProfile) de cada una.
      */
     public List<ColumnProfile> analyze(InputStream inputStream) throws IOException {
+        String csvContent = readAndCleanContent(inputStream);
+        char delimiter = detectDelimiter(csvContent);
+        CSVFormat format = buildCsvFormat(delimiter);
+
         // LinkedHashMap mantiene el orden original en que aparecen las columnas en el CSV
         Map<String, List<String>> columnsData = new LinkedHashMap<>();
 
-        CSVFormat format = buildCsvFormat();
-
-        try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+        try (Reader reader = new StringReader(csvContent);
              CSVParser parser = format.parse(reader)) {
 
             List<String> headers = parser.getHeaderNames();
@@ -80,13 +86,16 @@ public class StatsEngineService {
     }
 
     /**
-     * Cuenta el total de filas de datos (excluyendo el encabezado y líneas vacías) del archivo CSV.
+     * Cuenta el total de filas de datos (excluyendo el encabezado y líneas vacías) del archivo CSV,
+     * respetando el delimitador detectado automáticamente.
      */
     public int countRows(InputStream inputStream) throws IOException {
-        CSVFormat format = buildCsvFormat();
+        String csvContent = readAndCleanContent(inputStream);
+        char delimiter = detectDelimiter(csvContent);
+        CSVFormat format = buildCsvFormat(delimiter);
         int rowCount = 0;
 
-        try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+        try (Reader reader = new StringReader(csvContent);
              CSVParser parser = format.parse(reader)) {
             for (CSVRecord ignored : parser) {
                 rowCount++;
@@ -97,10 +106,49 @@ public class StatsEngineService {
     }
 
     /**
-     * Configuración estándar de Apache Commons CSV para todo el motor estadístico.
+     * Convierte el InputStream a String UTF-8 y elimina el carácter invisible BOM (\uFEFF)
+     * si fue exportado desde SQL Server Management Studio o Excel.
      */
-    private CSVFormat buildCsvFormat() {
+    private String readAndCleanContent(InputStream inputStream) throws IOException {
+        String content = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        if (content.startsWith(UTF8_BOM)) {
+            return content.substring(1);
+        }
+        return content;
+    }
+
+    /**
+     * Inspecciona la primera línea no vacía del CSV (encabezado) y detecta qué separador de columnas
+     * predomina: coma (','), punto y coma (';' usado por SQL Server / Excel en español) o tabulador ('\t').
+     */
+    private char detectDelimiter(String csvContent) throws IOException {
+        try (BufferedReader br = new BufferedReader(new StringReader(csvContent))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (!line.isBlank()) {
+                    long commas = line.chars().filter(ch -> ch == ',').count();
+                    long semicolons = line.chars().filter(ch -> ch == ';').count();
+                    long tabs = line.chars().filter(ch -> ch == '\t').count();
+
+                    if (semicolons > commas && semicolons >= tabs) {
+                        return ';';
+                    }
+                    if (tabs > commas && tabs > semicolons) {
+                        return '\t';
+                    }
+                    return ',';
+                }
+            }
+        }
+        return ',';
+    }
+
+    /**
+     * Configuración de Apache Commons CSV parametrizada con el delimitador detectado.
+     */
+    private CSVFormat buildCsvFormat(char delimiter) {
         return CSVFormat.DEFAULT.builder()
+                .setDelimiter(delimiter)
                 .setHeader()
                 .setSkipHeaderRecord(true)
                 .setIgnoreEmptyLines(true)
@@ -109,8 +157,8 @@ public class StatsEngineService {
     }
 
     /**
-     * Construye el perfil completo de una columna: separa valores nulos/vacíos de los válidos,
-     * cuenta los valores únicos, infiere el tipo de dato y calcula sus métricas (numéricas o Top 5).
+     * Construye el perfil completo de una columna: separa valores nulos/vacíos (incluyendo literal "NULL" de SQL)
+     * de los válidos, cuenta los valores únicos, infiere el tipo de dato y calcula sus métricas.
      */
     private ColumnProfile buildColumnProfile(String columnName, List<String> values) {
         ColumnProfile profile = new ColumnProfile();
@@ -119,9 +167,9 @@ public class StatsEngineService {
         List<String> validValues = new ArrayList<>();
         int nullCount = 0;
 
-        // Filtramos celdas nulas o en blanco para no distorsionar la inferencia de tipos ni los cálculos
+        // Filtramos celdas nulas, en blanco o con el literal "NULL" exportado por SQL Server Management Studio
         for (String value : values) {
-            if (value == null || value.isBlank()) {
+            if (isNullOrBlank(value)) {
                 nullCount++;
             } else {
                 validValues.add(value.trim());
@@ -135,9 +183,19 @@ public class StatsEngineService {
         ColumnDataType dataType = inferDataType(validValues);
         profile.setDataType(dataType);
 
-        // Si es numérica calculamos min/max/promedio/mediana; en caso contrario calculamos el Top 5 de frecuencias
+        // Si es numérica calculamos min/max/promedio/mediana;
+        // si es DATE agrupamos el Top 5 por día (yyyy-MM-dd) ignorando horas/milisegundos;
+        // en caso contrario calculamos el Top 5 de frecuencias exactas.
         if (dataType == ColumnDataType.NUMERIC && !validValues.isEmpty()) {
             calculateNumericStats(profile, validValues);
+        } else if (dataType == ColumnDataType.DATE && !validValues.isEmpty()) {
+            List<String> normalizedDates = validValues.stream()
+                    .map(val -> {
+                        LocalDate date = tryParseLocalDate(val);
+                        return date != null ? date.toString() : val;
+                    })
+                    .toList();
+            profile.setTopValues(calculateTopValues(normalizedDates, TOP_VALUES_LIMIT));
         } else if (!validValues.isEmpty()) {
             profile.setTopValues(calculateTopValues(validValues, TOP_VALUES_LIMIT));
         } else {
@@ -145,6 +203,16 @@ public class StatsEngineService {
         }
 
         return profile;
+    }
+
+    /**
+     * Determina si una celda debe considerarse nula (null, vacía o texto literal "NULL" de exportaciones SQL).
+     */
+    private boolean isNullOrBlank(String value) {
+        if (value == null || value.isBlank()) {
+            return true;
+        }
+        return "null".equalsIgnoreCase(value.trim());
     }
 
     /**
@@ -192,22 +260,32 @@ public class StatsEngineService {
     }
 
     /**
-     * Verifica si un texto coincide con alguno de los formatos de fecha (LocalDate) o fecha-hora (ISO LocalDateTime) soportados.
+     * Verifica si un texto coincide con alguno de los formatos de fecha o fecha-hora (ISO o SQL Server).
      */
     private boolean isDate(String value) {
+        return tryParseLocalDate(value) != null;
+    }
+
+    /**
+     * Intenta extraer un LocalDate a partir de un string de fecha o fecha-hora (soporta tanto
+     * separador ISO 'T' como el espacio ' ' con milisegundos propio de SQL Server).
+     * Devuelve null si el texto no es una fecha válida.
+     */
+    private LocalDate tryParseLocalDate(String value) {
         for (DateTimeFormatter formatter : DATE_FORMATTERS) {
             try {
-                LocalDate.parse(value, formatter);
-                return true;
+                return LocalDate.parse(value, formatter);
             } catch (DateTimeParseException ignored) {
-                // Si no coincide con este formato, probamos con el siguiente de la lista
+                // Si no coincide con este formato, probamos con el siguiente
             }
         }
+
+        // Soportamos timestamps con hora y milisegundos (ej. "2026-11-16 23:02:00.537" o "2026-11-16T23:02:00")
+        String isoCandidate = value.replaceFirst(" ", "T");
         try {
-            LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-            return true;
+            return LocalDateTime.parse(isoCandidate, DateTimeFormatter.ISO_LOCAL_DATE_TIME).toLocalDate();
         } catch (DateTimeParseException e) {
-            return false;
+            return null;
         }
     }
 

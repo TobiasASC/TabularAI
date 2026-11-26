@@ -52,7 +52,7 @@ public class AiReportService {
      */
     public AiReportService(
             ChatClient.Builder chatClientBuilder,
-            @Value("${spring.ai.openai.chat.options.model:llama-3.3-70b-versatile}") String modelName) {
+            @Value("${spring.ai.openai.chat.options.model:openai/gpt-oss-120b}") String modelName) {
         this.chatClient = chatClientBuilder.build();
         this.modelName = modelName;
     }
