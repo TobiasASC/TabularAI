@@ -3,6 +3,7 @@ package com.tabularai.service;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.tabularai.exception.InvalidCsvException;
 import com.tabularai.model.AiReport;
 import com.tabularai.model.ColumnProfile;
 import com.tabularai.model.Dataset;
@@ -21,6 +23,9 @@ import jakarta.persistence.EntityNotFoundException;
 
 @Service
 public class DatasetOrchestratorService {
+
+    private static final long MAX_FILE_SIZE_BYTES = 5L * 1024 * 1024; // 5 MB
+    private static final int MAX_ROWS = 5000;
 
     private final StatsEngineService statsEngineService;
     private final AiReportService aiReportService;
@@ -40,21 +45,43 @@ public class DatasetOrchestratorService {
 
     /**
      * Flujo principal (POST /api/v1/datasets):
-     * 1. Analiza el CSV con el motor estadístico en Java (StatsEngineService).
-     * 2. Construye el Dataset padre y vincula sus ColumnProfiles.
-     * 3. Genera el primer diagnóstico semántico con IA (AiReportService).
-     * 4. Persiste en cascada el Dataset, sus ColumnProfiles y su AiReport en PostgreSQL.
+     * 1. Valida el archivo CSV (extensión, peso, no vacío y límite de filas).
+     * 2. Analiza el CSV con el motor estadístico en Java (StatsEngineService).
+     * 3. Construye el Dataset padre y vincula sus ColumnProfiles.
+     * 4. Genera el primer diagnóstico semántico con IA (AiReportService).
+     * 5. Persiste en cascada el Dataset, sus ColumnProfiles y su AiReport en PostgreSQL.
      */
-    public Dataset processNewDataset(MultipartFile file, String userContext) throws IOException {
-        byte[] csvBytes = file.getBytes();
+    public Dataset processNewDataset(MultipartFile file, String userContext) {
+        validateCsvFile(file);
 
-        // 1. Cálculo determinista en Java (perfiles por columna y total de filas)
-        List<ColumnProfile> profiles = statsEngineService.analyze(new ByteArrayInputStream(csvBytes));
-        int rowCount = statsEngineService.countRows(new ByteArrayInputStream(csvBytes));
+        byte[] csvBytes;
+        List<ColumnProfile> profiles;
+        int rowCount;
 
-        // 2. Creación de la entidad padre Dataset
+        try {
+            csvBytes = file.getBytes();
+            rowCount = statsEngineService.countRows(new ByteArrayInputStream(csvBytes));
+
+            if (rowCount == 0) {
+                throw new InvalidCsvException("El archivo CSV no contiene filas de datos.");
+            }
+            if (rowCount > MAX_ROWS) {
+                throw new InvalidCsvException(
+                        "El archivo supera el límite máximo permitido de " + MAX_ROWS + " filas (contiene " + rowCount + ")."
+                );
+            }
+
+            profiles = statsEngineService.analyze(new ByteArrayInputStream(csvBytes));
+            if (profiles.isEmpty()) {
+                throw new InvalidCsvException("No se detectaron columnas válidas en el encabezado del CSV.");
+            }
+        } catch (IOException e) {
+            throw new InvalidCsvException("No se pudo leer o parsear el archivo CSV.", e);
+        }
+
+        // Creación de la entidad padre Dataset
         Dataset dataset = new Dataset();
-        dataset.setFilename(file.getOriginalFilename() != null ? file.getOriginalFilename() : "dataset.csv");
+        dataset.setFilename(file.getOriginalFilename());
         dataset.setFileSizeBytes(file.getSize());
         dataset.setRowCount(rowCount);
         dataset.setColumnCount(profiles.size());
@@ -65,12 +92,30 @@ public class DatasetOrchestratorService {
             dataset.addColumnProfile(profile);
         }
 
-        // 3. Generación del primer reporte con Spring AI (usando solo los perfiles ya calculados)
+        // Generación del primer reporte con Spring AI (usando solo los perfiles ya calculados)
         AiReport initialReport = aiReportService.generateReport(dataset, userContext);
         dataset.addAiReport(initialReport);
 
-        // 4. Guardado único en cascada (CascadeType.ALL guarda Dataset + ColumnProfiles + AiReport)
+        // Guardado único en cascada (CascadeType.ALL guarda Dataset + ColumnProfiles + AiReport)
         return datasetRepository.save(dataset);
+    }
+
+    /**
+     * Valida que el archivo exista, no esté vacío, no supere los 5 MB y tenga extensión .csv.
+     */
+    private void validateCsvFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new InvalidCsvException("El archivo CSV es obligatorio y no puede estar vacío.");
+        }
+
+        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
+            throw new InvalidCsvException("El archivo supera el tamaño máximo permitido de 5 MB.");
+        }
+
+        String filename = file.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase(Locale.ROOT).endsWith(".csv")) {
+            throw new InvalidCsvException("Formato de archivo no soportado. Solo se permiten archivos con extensión .csv.");
+        }
     }
 
     /**
@@ -104,8 +149,12 @@ public class DatasetOrchestratorService {
      */
     @Transactional(readOnly = true)
     public Dataset getDatasetById(Long datasetId) {
-        return datasetRepository.findById(datasetId)
+        Dataset dataset = datasetRepository.findById(datasetId)
                 .orElseThrow(() -> new EntityNotFoundException("Dataset no encontrado con ID: " + datasetId));
+        // Inicializamos las colecciones LAZY dentro de la transacción antes de mapear al DTO
+        dataset.getColumnProfiles().size();
+        dataset.getAiReports().size();
+        return dataset;
     }
 
     /**
