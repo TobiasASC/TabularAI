@@ -32,6 +32,8 @@ public class ColumnProfile {
     @Column(name = "column_profile_id")
     private Long id;
 
+    /* @JoinColumn(name = "dataset_id", nullable = false): Crea físicamente la columna de clave foránea dataset_id en la tabla column_profiles. 
+    Ningún perfil puede existir sin pertenecer a un Dataset*/
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "dataset_id", nullable = false)
     private Dataset dataset;
@@ -61,6 +63,7 @@ public class ColumnProfile {
     @Column(name = "median_val")
     private Double medianVal;
 
+    // Campo de los 5 valores más repetidos y su frencuencia de las columnas que no son numéricas
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "top_values", columnDefinition = "jsonb")
     private Map<String, Long> topValues;

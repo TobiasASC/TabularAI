@@ -52,6 +52,7 @@ public class Dataset {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    // @OneToMany: Le dice a JPA que 1 Dataset puede tener N ColumnProfiles y N AiReports.
     @OneToMany(mappedBy = "dataset", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ColumnProfile> columnProfiles = new ArrayList<>();
 

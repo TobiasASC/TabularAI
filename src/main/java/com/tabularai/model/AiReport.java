@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+// Cada instancia de este model representa un análisis generado por el LLM sobre un dataset.
 @Entity
 @Getter
 @Setter
@@ -32,19 +33,24 @@ public class AiReport {
     @Column(name = "ai_report_id")
     private Long id;
 
+    // Relación N:1 con Dataset, un dataset tiene multiples reportes de IA sin necesidad de volver a subir un CSV
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "dataset_id", nullable = false)
     private Dataset dataset;
 
+    // Guarda el contexto, lo que pidio el usuario
     @Column(name = "user_context", length = 500)
     private String userContext;
 
+    // Guarda el modelo de IA usado en el reporte
     @Column(name = "model_used", length = 100)
     private String modelUsed;
 
+    // Resumen ejecutivo del LLM
     @Column(name = "executive_summary", columnDefinition = "TEXT")
     private String executiveSummary;
 
+    // Se guardan los hallazgos en una lista
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "findings", columnDefinition = "jsonb")
     private List<String> findings;
