@@ -36,6 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDatasetHistory();
 });
 
+// Auto-ajuste de altura del textarea a medida que el usuario escribe un prompt largo
+userContextInput.addEventListener('input', () => {
+    userContextInput.style.height = 'auto';
+    userContextInput.style.height = `${Math.min(userContextInput.scrollHeight, 200)}px`;
+});
+
 // 1. Subir nuevo archivo CSV (POST /api/v1/datasets)
 uploadForm.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -70,6 +76,7 @@ uploadForm.addEventListener('submit', async (event) => {
         }
 
         uploadForm.reset();
+        userContextInput.style.height = 'auto';
         showAlert(`Dataset "${data.filename}" analizado correctamente.`, 'success');
         renderDatasetDetail(data);
         loadDatasetHistory();
