@@ -14,13 +14,15 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.persistence.EntityNotFoundException;
 
 /**
  * Manejador global de errores que intercepta las excepciones de toda la aplicación
  * y las transforma en respuestas JSON estandarizadas bajo la norma RFC 7807 (ProblemDetail).
  */
-@RestControllerAdvice
+@Hidden
+@RestControllerAdvice(basePackages = "com.tabularai.controller")
 public class GlobalExceptionHandler {
 
     // 1. Errores de validación del archivo CSV (400 Bad Request)
