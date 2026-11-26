@@ -46,16 +46,9 @@ public class StatsEngineService {
      */
     public List<ColumnProfile> analyze(InputStream inputStream) throws IOException {
         // LinkedHashMap mantiene el orden original en que aparecen las columnas en el CSV
-        // String (clave) guarda el nombre de la columna y List<String> todos los datos de esa columna
         Map<String, List<String>> columnsData = new LinkedHashMap<>();
 
-        // Reglas para la lectura del CSV
-        CSVFormat format = CSVFormat.DEFAULT.builder()
-                .setHeader()
-                .setSkipHeaderRecord(true)
-                .setIgnoreEmptyLines(true)
-                .setTrim(true)
-                .build();
+        CSVFormat format = buildCsvFormat();
 
         try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
              CSVParser parser = format.parse(reader)) {
@@ -84,6 +77,35 @@ public class StatsEngineService {
         }
 
         return profiles;
+    }
+
+    /**
+     * Cuenta el total de filas de datos (excluyendo el encabezado y líneas vacías) del archivo CSV.
+     */
+    public int countRows(InputStream inputStream) throws IOException {
+        CSVFormat format = buildCsvFormat();
+        int rowCount = 0;
+
+        try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+             CSVParser parser = format.parse(reader)) {
+            for (CSVRecord ignored : parser) {
+                rowCount++;
+            }
+        }
+
+        return rowCount;
+    }
+
+    /**
+     * Configuración estándar de Apache Commons CSV para todo el motor estadístico.
+     */
+    private CSVFormat buildCsvFormat() {
+        return CSVFormat.DEFAULT.builder()
+                .setHeader()
+                .setSkipHeaderRecord(true)
+                .setIgnoreEmptyLines(true)
+                .setTrim(true)
+                .build();
     }
 
     /**
