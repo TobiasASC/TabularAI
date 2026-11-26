@@ -26,6 +26,9 @@ const detailReportCount = document.getElementById('detailReportCount');
 const deleteDatasetBtn = document.getElementById('deleteDatasetBtn');
 
 const profilesTableBody = document.getElementById('profilesTableBody');
+const profilesTableWrapper = document.getElementById('profilesTableWrapper');
+const columnSearchInput = document.getElementById('columnSearchInput');
+const toggleTableHeightBtn = document.getElementById('toggleTableHeightBtn');
 const newReportForm = document.getElementById('newReportForm');
 const newReportContext = document.getElementById('newReportContext');
 const newReportBtn = document.getElementById('newReportBtn');
@@ -40,6 +43,22 @@ document.addEventListener('DOMContentLoaded', () => {
 userContextInput.addEventListener('input', () => {
     userContextInput.style.height = 'auto';
     userContextInput.style.height = `${Math.min(userContextInput.scrollHeight, 200)}px`;
+});
+
+// Filtro instantáneo de columnas en la tabla de Radiografía Estadística
+columnSearchInput.addEventListener('input', () => {
+    const query = columnSearchInput.value.trim().toLowerCase();
+    const rows = profilesTableBody.querySelectorAll('tr');
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+});
+
+// Botón para expandir o compactar la altura del contenedor con scroll de la tabla
+toggleTableHeightBtn.addEventListener('click', () => {
+    const isExpanded = profilesTableWrapper.classList.toggle('expanded');
+    toggleTableHeightBtn.textContent = isExpanded ? 'Compactar ↕' : 'Expandir ↕';
 });
 
 // 1. Subir nuevo archivo CSV (POST /api/v1/datasets)
@@ -212,6 +231,7 @@ function renderDatasetDetail(dataset) {
     detailReportCount.textContent = reports.length;
 
     // Renderizar tabla de ColumnProfiles
+    if (columnSearchInput) columnSearchInput.value = '';
     const profiles = dataset.columnProfiles || [];
     profilesTableBody.innerHTML = profiles.map(col => `
         <tr>
@@ -249,9 +269,10 @@ function renderTopValues(topValues) {
     if (!topValues || Object.keys(topValues).length === 0) {
         return '<span class="muted-text">—</span>';
     }
-    return Object.entries(topValues)
+    const chips = Object.entries(topValues)
         .map(([key, count]) => `<span class="freq-chip">${escapeHtml(key)}: <strong>${count}</strong></span>`)
-        .join(' ');
+        .join('');
+    return `<div class="freq-list">${chips}</div>`;
 }
 
 function formatNumber(num) {

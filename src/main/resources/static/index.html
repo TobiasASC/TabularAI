@@ -108,9 +108,19 @@
 
                 <!-- Tabla del Motor Determinista: Column Profiles -->
                 <div class="card">
-                    <h2>Radiografía Estadística por Columna (Motor Determinista Java)</h2>
-                    <p class="section-subtitle">Métricas exactas calculadas en memoria con Apache Commons CSV antes de consultar al LLM.</p>
-                    <div class="table-responsive">
+                    <div class="card-header-inline">
+                        <div>
+                            <h2>Radiografía Estadística por Columna (Motor Determinista Java)</h2>
+                            <p class="section-subtitle">Métricas exactas calculadas en memoria con Apache Commons CSV antes de consultar al LLM.</p>
+                        </div>
+                        <div class="table-controls">
+                            <input type="text" id="columnSearchInput" class="table-search-input" placeholder="Filtrar columna o tipo...">
+                            <button type="button" id="toggleTableHeightBtn" class="btn btn-sm btn-outline" title="Alternar altura de la tabla">
+                                Expandir ↕
+                            </button>
+                        </div>
+                    </div>
+                    <div id="profilesTableWrapper" class="table-responsive">
                         <table class="profiles-table">
                             <thead>
                                 <tr>
