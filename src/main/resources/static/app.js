@@ -263,11 +263,11 @@ function renderDatasetDetail(dataset) {
             <th>Tipo Inferido</th>
             <th>Nulos</th>
             <th>Únicos</th>
-            <th>Total (Suma)</th>
+            <th>Total</th>
             <th>Mínimo</th>
             <th>Máximo</th>
-            <th>Promedio (Mean)</th>
-            <th>Mediana (Median)</th>
+            <th>Promedio</th>
+            <th>Mediana</th>
             <th>Desv. Estándar</th>
             <th>Top 5 Frecuencias</th>
         `;
