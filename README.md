@@ -5,9 +5,6 @@
 ---
 
 ## Demostración Interactiva
-
-<!-- Reemplaza la ruta de abajo con tu GIF grabado (por ejemplo: docs/demo.gif) -->
-> **[ESPACIO PARA GIF DEMOSTRATIVO]**
 >
 > ![Demostración de TabularAI](docs/demo.gif)
 
@@ -22,9 +19,9 @@ Enviar un archivo CSV crudo de miles de filas directamente a un LLM es **costoso
 1. **Motor Determinista (`StatsEngineService` — Java + Apache Commons CSV):**
    * Parsea el archivo en memoria RAM, autodetecta el delimitador (`,`, `;` o `\t`), limpia marcas `UTF-8 BOM` y normaliza decimales con punto o coma.
    * Clasifica automáticamente cada columna (`NUMERIC`, `TEXT`, `BOOLEAN`, `DATE`, `IDENTIFIER`) diferenciando claves primarias (PK) de claves foráneas (FK).
-   * Calcula métricas exactas: **Total (Suma), Mínimo, Máximo, Promedio (Mean), Mediana (Median), Desviación Estándar, conteo de Nulos/Únicos y Top 5 de Frecuencias** (agrupando timestamps por día).
+   * Calcula métricas exactas: **Total (Suma), Mínimo, Máximo, Promedio, Mediana, Desviación Estándar, conteo de Nulos/Únicos y Top 5 de Frecuencias** (agrupando timestamps por día).
 2. **Motor Semántico (`AiReportService` — Spring AI + Groq):**
-   * Consume **únicamente los perfiles estadísticos ya calculados por Java** (~350 tokens por petición en lugar de >100.000 tokens del CSV crudo).
+   * Consume **únicamente los perfiles estadísticos ya calculados por Java**.
    * Utiliza **Structured Outputs** (`.entity(AiInsightsDto.class)`) para obligar al LLM a responder bajo un esquema JSON estricto mapeado directamente a un Java `Record`.
    * Permite generar **múltiples reportes con distintos enfoques** sobre un mismo dataset reutilizando los perfiles guardados en PostgreSQL sin volver a subir ni reprocesar el archivo.
 
@@ -41,7 +38,7 @@ Enviar un archivo CSV crudo de miles de filas directamente a un LLM es **costoso
 | **Base de Datos** | PostgreSQL 16 | Modelo híbrido: tablas relacionales (`1:N`) combinadas con columnas nativas `JSONB`. |
 | **Persistencia / ORM** | Spring Data JPA + Hibernate | Relaciones bidireccionales en cascada (`CascadeType.ALL`) y mapeo `@JdbcTypeCode(SqlTypes.JSON)`. |
 | **Documentación API** | Springdoc OpenAPI 3 (Swagger) | Interfaz interactiva en `/swagger-ui/index.html` para probar todos los endpoints. |
-| **Frontend** | HTML5 + CSS3 + Vanilla JS (`fetch`) | Dashboard moderno desacoplado servido desde `src/main/resources/static`. |
+| **Frontend** | HTML5 + CSS3 + Vanilla JS (`fetch`) | Dashboard desacoplado servido desde `src/main/resources/static`. |
 | **Testing** | JUnit 5 + Mockito | Pruebas unitarias del motor estadístico, orquestador y generación de contratos OpenAPI. |
 | **Infraestructura** | Docker & Docker Compose | Despliegue reproducible de PostgreSQL 16 con volumen persistente. |
 
@@ -128,7 +125,7 @@ erDiagram
 
 ### 1. Clonar el repositorio
 ```bash
-git clone https://github.com/tu-usuario/tabularai.git
+git clone https://github.com/TobiasASC/tabularai.git
 cd tabularai
 ```
 
@@ -161,11 +158,7 @@ En Linux / macOS:
 * **Dashboard Web:** [http://localhost:8080](http://localhost:8080)
 * **Swagger UI (OpenAPI Docs):** [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
 
-> **Archivos CSV de prueba incluidos:** En la carpeta [`/samples`](./samples) encontrarás 3 archivos listos para probar distintos escenarios:
-> * `ventas_tecnologia.csv`: CSV estándar separado por comas con valores atípicos y celdas vacías.
-> * `ventas_sql_server.csv`: Exportación real de SQL Server separada por `;`, con decimales con coma, literales `NULL`, claves foráneas y timestamps con milisegundos.
-> * `metricas_clientes_saas.csv`: Dataset de suscripciones SaaS para análisis de retención (*churn*) y facturación.
-
+> **Archivos CSV de prueba incluidos:** En la carpeta [`/samples`](./samples) vas a encontrar archivos listos para probar distintos escenarios.
 ---
 
 ## Ejecutar Pruebas Unitarias
