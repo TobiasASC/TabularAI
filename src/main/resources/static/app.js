@@ -269,7 +269,9 @@ function renderTopValues(topValues) {
     if (!topValues || Object.keys(topValues).length === 0) {
         return '<span class="muted-text">—</span>';
     }
+    // Ordenamos de mayor a menor frecuencia (ya que PostgreSQL jsonb no preserva el orden de claves)
     const chips = Object.entries(topValues)
+        .sort((a, b) => b[1] - a[1])
         .map(([key, count]) => `<span class="freq-chip">${escapeHtml(key)}: <strong>${count}</strong></span>`)
         .join('');
     return `<div class="freq-list">${chips}</div>`;

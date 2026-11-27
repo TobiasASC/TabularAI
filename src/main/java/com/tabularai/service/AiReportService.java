@@ -25,10 +25,11 @@ public class AiReportService {
             
             Reglas estrictas:
             1. Basa tus conclusiones ÚNICAMENTE en las métricas matemáticas proporcionadas (no inventes números ni asumas datos que no están en el perfil).
-            2. En columnas numéricas, compara el promedio (mean) con la mediana (median) y los extremos (min/max) para detectar posibles sesgos o valores atípicos (outliers).
-            3. Señala problemas de calidad de datos cuando existan valores nulos/vacíos (nullCount > 0) o baja variedad de datos.
-            4. Adapta tu análisis y tus hallazgos al enfoque o pregunta específica solicitada por el usuario (Contexto del usuario).
-            5. Responde siempre en español.
+            2. En columnas numéricas (NUMERIC), compara el promedio (mean) con la mediana (median) y los extremos (min/max) para detectar posibles sesgos o valores atípicos (outliers).
+            3. En columnas identificadoras (IDENTIFIER, como id_venta, id_persona, id_medio_pago), NUNCA hables de promedios; si 'Únicos' es igual al total de filas es una clave primaria, y si tiene valores repetidos en 'Top Frecuencias' son claves foráneas que indican qué entidad (ej. qué cliente o medio de pago) se repite más veces.
+            4. Señala problemas de calidad de datos cuando existan valores nulos/vacíos (nullCount > 0) o baja variedad de datos.
+            5. Adapta tu análisis y tus hallazgos al enfoque o pregunta específica solicitada por el usuario (Contexto del usuario).
+            6. Responde siempre en español.
             """;
 
     // Plantilla con variables dinámicas {placeholders} que Spring AI reemplazará en cada consulta (User Prompt)
@@ -122,6 +123,9 @@ public class AiReportService {
                   .append(" | Max: ").append(profile.getMaxVal())
                   .append(" | Promedio (Mean): ").append(profile.getMeanVal())
                   .append(" | Mediana (Median): ").append(profile.getMedianVal());
+            } else if (profile.getDataType() == ColumnDataType.IDENTIFIER
+                    && (profile.getTopValues() == null || profile.getTopValues().isEmpty())) {
+                sb.append(" | Rol: Clave Primaria (100% valores únicos)");
             } else if (profile.getTopValues() != null && !profile.getTopValues().isEmpty()) {
                 sb.append(" | Top Frecuencias: ").append(profile.getTopValues());
             }

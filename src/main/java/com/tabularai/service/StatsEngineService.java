@@ -180,12 +180,15 @@ public class StatsEngineService {
         // HashSet elimina duplicados automáticamente; su tamaño nos da la cantidad de valores únicos
         profile.setUniqueCount(new HashSet<>(validValues).size());
 
-        ColumnDataType dataType = inferDataType(validValues);
+        ColumnDataType dataType = isIdentifierColumn(columnName)
+                ? ColumnDataType.IDENTIFIER
+                : inferDataType(validValues);
         profile.setDataType(dataType);
 
-        // Si es numérica calculamos min/max/promedio/mediana;
+        // Si es numérica (y no es un ID) calculamos min/max/promedio/mediana;
         // si es DATE agrupamos el Top 5 por día (yyyy-MM-dd) ignorando horas/milisegundos;
-        // en caso contrario calculamos el Top 5 de frecuencias exactas.
+        // si es IDENTIFIER solo calculamos Top 5 cuando hay valores repetidos (Clave Foránea), omitiéndolo en Claves Primarias (100% únicos);
+        // en caso contrario (TEXT o BOOLEAN) calculamos el Top 5 de frecuencias exactas.
         if (dataType == ColumnDataType.NUMERIC && !validValues.isEmpty()) {
             calculateNumericStats(profile, validValues);
         } else if (dataType == ColumnDataType.DATE && !validValues.isEmpty()) {
@@ -196,6 +199,12 @@ public class StatsEngineService {
                     })
                     .toList();
             profile.setTopValues(calculateTopValues(normalizedDates, TOP_VALUES_LIMIT));
+        } else if (dataType == ColumnDataType.IDENTIFIER) {
+            if (profile.getUniqueCount() < validValues.size()) {
+                profile.setTopValues(calculateTopValues(validValues, TOP_VALUES_LIMIT));
+            } else {
+                profile.setTopValues(Map.of());
+            }
         } else if (!validValues.isEmpty()) {
             profile.setTopValues(calculateTopValues(validValues, TOP_VALUES_LIMIT));
         } else {
@@ -203,6 +212,21 @@ public class StatsEngineService {
         }
 
         return profile;
+    }
+
+    /**
+     * Detecta si el nombre de la columna corresponde a un identificador (Clave Primaria o Clave Foránea),
+     * como "id", "id_venta", "id_persona", "id_medio_pago", "cliente_id", etc.
+     * En estas columnas no se debe calcular promedio ni mediana, sino frecuencias de aparición.
+     */
+    private boolean isIdentifierColumn(String columnName) {
+        if (columnName == null || columnName.isBlank()) {
+            return false;
+        }
+        String normalized = columnName.trim().toLowerCase();
+        return normalized.equals("id")
+                || normalized.startsWith("id_")
+                || normalized.endsWith("_id");
     }
 
     /**

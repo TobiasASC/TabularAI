@@ -1,7 +1,11 @@
 package com.tabularai.config;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.event.EventListener;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
@@ -13,6 +17,27 @@ import io.swagger.v3.oas.models.info.Info;
  */
 @Configuration
 public class OpenApiConfig {
+
+    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
+
+    public OpenApiConfig(ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
+        this.jdbcTemplateProvider = jdbcTemplateProvider;
+    }
+
+    /**
+     * Al iniciar la aplicación actualiza la restricción CHECK de PostgreSQL en column_profiles
+     * para permitir el nuevo tipo de dato IDENTIFIER en bases de datos ya existentes.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void updateDatabaseEnumConstraint() {
+        jdbcTemplateProvider.ifAvailable(jdbc -> {
+            try {
+                jdbc.execute("ALTER TABLE IF EXISTS column_profiles DROP CONSTRAINT IF EXISTS column_profiles_data_type_check");
+            } catch (Exception ignored) {
+                // Si la tabla aún no existe o no tiene la restricción, continuamos normalmente
+            }
+        });
+    }
 
     @Bean
     public OpenAPI tabularAiOpenAPI() {

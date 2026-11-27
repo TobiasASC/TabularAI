@@ -598,6 +598,11 @@ textarea:focus {
     color: #38bdf8;
     border: 1px solid rgba(56, 189, 248, 0.3);
 }
+.type-IDENTIFIER {
+    background-color: rgba(251, 146, 60, 0.15);
+    color: #fb923c;
+    border: 1px solid rgba(251, 146, 60, 0.35);
+}
 
 .freq-chip {
     font-family: var(--font-mono);

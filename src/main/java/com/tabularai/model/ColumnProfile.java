@@ -42,7 +42,7 @@ public class ColumnProfile {
     private String columnName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "data_type", nullable = false)
+    @Column(name = "data_type", nullable = false, columnDefinition = "varchar(30)")
     private ColumnDataType dataType;
 
     @Column(name = "null_count")

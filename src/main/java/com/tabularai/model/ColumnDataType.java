@@ -4,5 +4,6 @@ public enum ColumnDataType {
     NUMERIC,
     TEXT,
     BOOLEAN,
-    DATE
+    DATE,
+    IDENTIFIER
 }

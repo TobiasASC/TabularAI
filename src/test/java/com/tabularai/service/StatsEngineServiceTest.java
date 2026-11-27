@@ -182,18 +182,26 @@ class StatsEngineServiceTest {
     }
 
     @Test
-    @DisplayName("Debe detectar punto y coma (;), timestamps con milisegundos agrupados por día y literales NULL de SQL Server")
+    @DisplayName("Debe detectar punto y coma (;), columnas IDENTIFIER (id_*), timestamps agrupados por día y literales NULL de SQL Server")
     void shouldHandleSqlServerCsvWithTimestampsAndNullLiterals() throws IOException {
-        String sqlServerCsv = "\uFEFFid_venta;creado_en;actualizado_en\n"
-                + "5;2026-02-04 08:50:00.000;NULL\n"
-                + "7;2026-02-04 08:50:00.000;NULL\n"
-                + "15;2026-11-16 23:02:00.537;2026-11-16 23:02:00.537\n"
-                + "16;2026-11-16 23:15:25.920;2026-11-16 23:15:25.920\n"
-                + "17;2026-11-16 23:15:43.010;2026-11-16 23:15:43.010\n";
+        String sqlServerCsv = "\uFEFFid_venta;creado_en;actualizado_en;id_persona\n"
+                + "5;2026-02-04 08:50:00.000;NULL;2\n"
+                + "7;2026-02-04 08:50:00.000;NULL;3\n"
+                + "15;2026-11-16 23:02:00.537;2026-11-16 23:02:00.537;2\n"
+                + "16;2026-11-16 23:15:25.920;2026-11-16 23:15:25.920;2\n"
+                + "17;2026-11-16 23:15:43.010;2026-11-16 23:15:43.010;2\n";
 
         List<ColumnProfile> profiles = statsEngineService.analyze(toInputStream(sqlServerCsv));
 
-        assertEquals(3, profiles.size());
+        assertEquals(4, profiles.size());
+
+        // id_venta (Clave Primaria, 5 únicos de 5 filas) debe ser IDENTIFIER sin media/mediana y con topValues vacío
+        ColumnProfile idVenta = profiles.get(0);
+        assertEquals(ColumnDataType.IDENTIFIER, idVenta.getDataType());
+        assertNull(idVenta.getMeanVal());
+        assertNull(idVenta.getMedianVal());
+        assertEquals(5, idVenta.getUniqueCount());
+        assertTrue(idVenta.getTopValues().isEmpty());
 
         // creado_en debe ser DATE y agrupar topValues por día (2026-11-16 tiene 3 ventas aunque tengan distintos milisegundos)
         ColumnProfile creadoEn = profiles.get(1);
@@ -207,6 +215,13 @@ class StatsEngineServiceTest {
         assertEquals(ColumnDataType.DATE, actualizadoEn.getDataType());
         assertEquals(2, actualizadoEn.getNullCount());
         assertEquals(3L, actualizadoEn.getTopValues().get("2026-11-16"));
+
+        // id_persona (Clave Foránea) debe ser IDENTIFIER, sin promedio y mostrando que la persona '2' se repite 4 veces
+        ColumnProfile idPersona = profiles.get(3);
+        assertEquals(ColumnDataType.IDENTIFIER, idPersona.getDataType());
+        assertNull(idPersona.getMeanVal());
+        assertEquals(4L, idPersona.getTopValues().get("2"));
+        assertEquals(1L, idPersona.getTopValues().get("3"));
     }
 
     private InputStream toInputStream(String content) {
