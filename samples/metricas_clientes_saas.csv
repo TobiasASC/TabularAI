@@ -1,0 +1,11 @@
+id_cliente,plan_suscripcion,gasto_mensual_usd,meses_antiguedad,tickets_soporte,activo,fecha_alta,pais
+101,Enterprise,499.00,24,1,true,2024-11-10,Argentina
+102,Pro,79.00,12,0,true,2025-11-15,Chile
+103,Starter,19.00,3,5,false,2026-08-01,Argentina
+104,Pro,79.00,18,2,true,2025-05-20,Colombia
+105,Enterprise,499.00,36,0,true,2023-11-01,Mexico
+106,Starter,19.00,1,8,false,2026-10-12,Argentina
+107,Pro,79.00,9,1,true,2026-02-14,Chile
+108,Enterprise,1250.00,48,0,true,2022-11-05,Mexico
+109,Starter,19.00,2,,false,2026-09-18,Peru
+110,Pro,79.00,15,1,true,2025-08-22,Argentina

@@ -202,7 +202,7 @@ function renderHistoryList() {
     const query = historySearchInput ? historySearchInput.value.trim().toLowerCase() : '';
     const filtered = cachedHistoryItems.filter(item => {
         if (!query) return true;
-        const searchable = `#${item.id} ${item.filename} ${formatDate(item.createdAt)}`.toLowerCase();
+        const searchable = `${item.filename} ${formatDate(item.createdAt)}`.toLowerCase();
         return searchable.includes(query);
     });
 
@@ -213,7 +213,7 @@ function renderHistoryList() {
 
     datasetHistoryList.innerHTML = filtered.map(item => `
         <div class="history-item ${item.id === currentDatasetId ? 'active' : ''}" onclick="selectDataset(${item.id})">
-            <div class="history-item-title">#${item.id} — ${escapeHtml(item.filename)}</div>
+            <div class="history-item-title">${escapeHtml(item.filename)}</div>
             <div class="history-item-meta">
                 ${item.rowCount} filas • ${item.columnCount} cols • ${formatDate(item.createdAt)}
             </div>
@@ -247,7 +247,7 @@ function renderDatasetDetail(dataset) {
 
     detailStatus.textContent = dataset.status;
     detailFilename.textContent = dataset.filename;
-    detailMeta.textContent = `ID: #${dataset.id} • Cargado: ${formatDate(dataset.createdAt)}`;
+    detailMeta.textContent = `Cargado: ${formatDate(dataset.createdAt)}`;
     detailRows.textContent = dataset.rowCount.toLocaleString('es-AR');
     detailCols.textContent = dataset.columnCount;
     detailSize.textContent = formatBytes(dataset.fileSizeBytes);
