@@ -16,8 +16,10 @@ public record ColumnProfileDto(
         int uniqueCount,
         Double minVal,
         Double maxVal,
+        Double sumVal,
         Double meanVal,
         Double medianVal,
+        Double stdDevVal,
         Map<String, Long> topValues
 ) {
     public static ColumnProfileDto fromEntity(ColumnProfile entity) {
@@ -29,8 +31,10 @@ public record ColumnProfileDto(
                 entity.getUniqueCount(),
                 entity.getMinVal(),
                 entity.getMaxVal(),
+                entity.getSumVal(),
                 entity.getMeanVal(),
                 entity.getMedianVal(),
+                entity.getStdDevVal(),
                 entity.getTopValues()
         );
     }

@@ -33,6 +33,16 @@ public class OpenApiConfig {
         jdbcTemplateProvider.ifAvailable(jdbc -> {
             try {
                 jdbc.execute("ALTER TABLE IF EXISTS column_profiles DROP CONSTRAINT IF EXISTS column_profiles_data_type_check");
+                // Rellenamos sum_val en datasets numéricos antiguos que fueron cargados antes de existir esta columna
+                jdbc.execute("""
+                        UPDATE column_profiles cp
+                        SET sum_val = ROUND(CAST(cp.mean_val * (d.row_count - cp.null_count) AS numeric), 2)
+                        FROM datasets d
+                        WHERE cp.dataset_id = d.dataset_id
+                          AND cp.data_type = 'NUMERIC'
+                          AND cp.sum_val IS NULL
+                          AND cp.mean_val IS NOT NULL
+                        """);
             } catch (Exception ignored) {
                 // Si la tabla aún no existe o no tiene la restricción, continuamos normalmente
             }

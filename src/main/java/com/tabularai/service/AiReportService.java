@@ -25,7 +25,7 @@ public class AiReportService {
             
             Reglas estrictas:
             1. Basa tus conclusiones ÚNICAMENTE en las métricas matemáticas proporcionadas (no inventes números ni asumas datos que no están en el perfil).
-            2. En columnas numéricas (NUMERIC), compara el promedio (mean) con la mediana (median) y los extremos (min/max) para detectar posibles sesgos o valores atípicos (outliers).
+            2. En columnas numéricas (NUMERIC), utiliza el Total (Suma) para informar montos o cantidades acumuladas, y compara el promedio (mean) con la mediana (median), la desviación estándar (stdDev) y los extremos (min/max) para detectar volatilidad, sesgos o valores atípicos (outliers).
             3. En columnas identificadoras (IDENTIFIER, como id_venta, id_persona, id_medio_pago), NUNCA hables de promedios; si 'Únicos' es igual al total de filas es una clave primaria, y si tiene valores repetidos en 'Top Frecuencias' son claves foráneas que indican qué entidad (ej. qué cliente o medio de pago) se repite más veces.
             4. Señala problemas de calidad de datos cuando existan valores nulos/vacíos (nullCount > 0) o baja variedad de datos.
             5. Adapta tu análisis y tus hallazgos al enfoque o pregunta específica solicitada por el usuario (Contexto del usuario).
@@ -119,10 +119,12 @@ public class AiReportService {
               .append(" | Únicos: ").append(profile.getUniqueCount());
 
             if (profile.getDataType() == ColumnDataType.NUMERIC) {
-                sb.append(" | Min: ").append(profile.getMinVal())
+                sb.append(" | Total (Suma): ").append(profile.getSumVal())
+                  .append(" | Min: ").append(profile.getMinVal())
                   .append(" | Max: ").append(profile.getMaxVal())
                   .append(" | Promedio (Mean): ").append(profile.getMeanVal())
-                  .append(" | Mediana (Median): ").append(profile.getMedianVal());
+                  .append(" | Mediana (Median): ").append(profile.getMedianVal())
+                  .append(" | Desv. Estándar (StdDev): ").append(profile.getStdDevVal());
             } else if (profile.getDataType() == ColumnDataType.IDENTIFIER
                     && (profile.getTopValues() == null || profile.getTopValues().isEmpty())) {
                 sb.append(" | Rol: Clave Primaria (100% valores únicos)");

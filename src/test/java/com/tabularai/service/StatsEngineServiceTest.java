@@ -53,8 +53,10 @@ class StatsEngineServiceTest {
         assertEquals(5, precioProfile.getUniqueCount());
         assertEquals(100.0, precioProfile.getMinVal(), 0.001);
         assertEquals(1000.0, precioProfile.getMaxVal(), 0.001);
+        assertEquals(2000.0, precioProfile.getSumVal(), 0.001);
         assertEquals(400.0, precioProfile.getMeanVal(), 0.001);
         assertEquals(300.0, precioProfile.getMedianVal(), 0.001);
+        assertEquals(316.227, precioProfile.getStdDevVal(), 0.01);
         assertNull(precioProfile.getTopValues());
 
         // 2. Columna TEXT (categoria): Electronica (3), Hogar (1), Ropa (1)
@@ -182,18 +184,18 @@ class StatsEngineServiceTest {
     }
 
     @Test
-    @DisplayName("Debe detectar punto y coma (;), columnas IDENTIFIER (id_*), timestamps agrupados por día y literales NULL de SQL Server")
+    @DisplayName("Debe detectar punto y coma (;), decimales con coma (,), columnas IDENTIFIER (id_*), timestamps agrupados por día y literales NULL de SQL Server")
     void shouldHandleSqlServerCsvWithTimestampsAndNullLiterals() throws IOException {
-        String sqlServerCsv = "\uFEFFid_venta;creado_en;actualizado_en;id_persona\n"
-                + "5;2026-02-04 08:50:00.000;NULL;2\n"
-                + "7;2026-02-04 08:50:00.000;NULL;3\n"
-                + "15;2026-11-16 23:02:00.537;2026-11-16 23:02:00.537;2\n"
-                + "16;2026-11-16 23:15:25.920;2026-11-16 23:15:25.920;2\n"
-                + "17;2026-11-16 23:15:43.010;2026-11-16 23:15:43.010;2\n";
+        String sqlServerCsv = "\uFEFFid_venta;creado_en;actualizado_en;id_persona;monto_decimal;\n"
+                + "5;2026-02-04 08:50:00.000;NULL;2;150,50;\n"
+                + "7;2026-02-04 08:50:00.000;NULL;3;249,50;\n"
+                + "15;2026-11-16 23:02:00.537;2026-11-16 23:02:00.537;2;100,00;\n"
+                + "16;2026-11-16 23:15:25.920;2026-11-16 23:15:25.920;2;200,00;\n"
+                + "17;2026-11-16 23:15:43.010;2026-11-16 23:15:43.010;2;300,00;\n";
 
         List<ColumnProfile> profiles = statsEngineService.analyze(toInputStream(sqlServerCsv));
 
-        assertEquals(4, profiles.size());
+        assertEquals(5, profiles.size());
 
         // id_venta (Clave Primaria, 5 únicos de 5 filas) debe ser IDENTIFIER sin media/mediana y con topValues vacío
         ColumnProfile idVenta = profiles.get(0);
@@ -222,6 +224,12 @@ class StatsEngineServiceTest {
         assertNull(idPersona.getMeanVal());
         assertEquals(4L, idPersona.getTopValues().get("2"));
         assertEquals(1L, idPersona.getTopValues().get("3"));
+
+        // monto_decimal con coma decimal ("150,50") debe ser NUMERIC y calcular suma = 1000.0 y media = 200.0
+        ColumnProfile montoDecimal = profiles.get(4);
+        assertEquals(ColumnDataType.NUMERIC, montoDecimal.getDataType());
+        assertEquals(1000.0, montoDecimal.getSumVal(), 0.001);
+        assertEquals(200.0, montoDecimal.getMeanVal(), 0.001);
     }
 
     private InputStream toInputStream(String content) {

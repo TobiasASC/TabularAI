@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=4">
 </head>
 <body>
     <header class="navbar">
@@ -56,6 +56,9 @@
                 <div class="card-header-inline">
                     <h2>Historial de Datasets</h2>
                     <button id="refreshHistoryBtn" class="btn btn-sm btn-outline" title="Recargar historial">↻</button>
+                </div>
+                <div class="history-search-box">
+                    <input type="text" id="historySearchInput" placeholder="Buscar dataset por nombre o ID...">
                 </div>
                 <div id="datasetHistoryList" class="history-list">
                     <p class="muted-text">Cargando historial...</p>
@@ -128,10 +131,12 @@
                                     <th>Tipo Inferido</th>
                                     <th>Nulos</th>
                                     <th>Únicos</th>
+                                    <th>Total (Suma)</th>
                                     <th>Mínimo</th>
                                     <th>Máximo</th>
                                     <th>Promedio (Mean)</th>
                                     <th>Mediana (Median)</th>
+                                    <th>Desv. Estándar</th>
                                     <th>Top 5 Frecuencias</th>
                                 </tr>
                             </thead>
@@ -167,6 +172,6 @@
         </section>
     </main>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=4"></script>
 </body>
 </html>

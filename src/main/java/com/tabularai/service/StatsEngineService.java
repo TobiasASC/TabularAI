@@ -59,7 +59,10 @@ public class StatsEngineService {
         try (Reader reader = new StringReader(csvContent);
              CSVParser parser = format.parse(reader)) {
 
-            List<String> headers = parser.getHeaderNames();
+            // Ignoramos encabezados vacíos (por ejemplo cuando Excel agrega un ';' extra al final de la línea)
+            List<String> headers = parser.getHeaderNames().stream()
+                    .filter(h -> h != null && !h.isBlank())
+                    .toList();
 
             // 1. Inicializamos una lista vacía para cada columna detectada en el encabezado
             for (String header : headers) {
@@ -152,6 +155,7 @@ public class StatsEngineService {
                 .setHeader()
                 .setSkipHeaderRecord(true)
                 .setIgnoreEmptyLines(true)
+                .setAllowMissingColumnNames(true)
                 .setTrim(true)
                 .build();
     }
@@ -273,14 +277,26 @@ public class StatsEngineService {
 
     /**
      * Verifica si un texto puede convertirse en un número decimal válido y finito (descarta NaN o Infinito).
+     * Soporta tanto punto decimal ("150.50") como coma decimal ("150,50") propia de exportaciones en español.
      */
     private boolean isNumeric(String value) {
         try {
-            double parsed = Double.parseDouble(value);
+            double parsed = parseFlexibleDouble(value);
             return Double.isFinite(parsed);
         } catch (NumberFormatException e) {
             return false;
         }
+    }
+
+    /**
+     * Convierte un String numérico a double soportando separador decimal con punto ('.') o coma (',').
+     */
+    private double parseFlexibleDouble(String value) {
+        String normalized = value.trim();
+        if (normalized.contains(",") && !normalized.contains(".")) {
+            normalized = normalized.replace(',', '.');
+        }
+        return Double.parseDouble(normalized);
     }
 
     /**
@@ -315,11 +331,12 @@ public class StatsEngineService {
 
     /**
      * Convierte los valores de texto a Double, los ordena de menor a mayor y calcula
-     * las métricas exactas de una columna numérica: mínimo, máximo, promedio (mean) y mediana (median).
+     * las métricas exactas de una columna numérica: mínimo, máximo, suma total (sum),
+     * promedio (mean), mediana (median) y desviación estándar (stdDev).
      */
     private void calculateNumericStats(ColumnProfile profile, List<String> validValues) {
         List<Double> numbers = validValues.stream()
-                .map(Double::parseDouble)
+                .map(this::parseFlexibleDouble)
                 .sorted()
                 .toList();
 
@@ -338,10 +355,18 @@ public class StatsEngineService {
             median = (numbers.get((n / 2) - 1) + numbers.get(n / 2)) / 2.0;
         }
 
+        // Desviación estándar poblacional: raíz cuadrada del promedio de las diferencias al cuadrado respecto a la media
+        double variance = numbers.stream()
+                .mapToDouble(num -> Math.pow(num - mean, 2))
+                .sum() / n;
+        double stdDev = Math.sqrt(variance);
+
         profile.setMinVal(min);
         profile.setMaxVal(max);
+        profile.setSumVal(sum);
         profile.setMeanVal(mean);
         profile.setMedianVal(median);
+        profile.setStdDevVal(stdDev);
     }
 
     /**

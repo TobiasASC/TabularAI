@@ -57,11 +57,17 @@ public class ColumnProfile {
     @Column(name = "max_val")
     private Double maxVal;
 
+    @Column(name = "sum_val")
+    private Double sumVal;
+
     @Column(name = "mean_val")
     private Double meanVal;
 
     @Column(name = "median_val")
     private Double medianVal;
+
+    @Column(name = "std_dev_val")
+    private Double stdDevVal;
 
     // Campo de los 5 valores más repetidos y su frencuencia de las columnas que no son numéricas
     @JdbcTypeCode(SqlTypes.JSON)

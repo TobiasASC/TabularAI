@@ -53,6 +53,9 @@ public class DatasetOrchestratorService {
      */
     public Dataset processNewDataset(MultipartFile file, String userContext) {
         validateCsvFile(file);
+        if (userContext != null && userContext.trim().length() > 500) {
+            throw new InvalidCsvException("El contexto o pregunta no puede superar los 500 caracteres.");
+        }
 
         byte[] csvBytes;
         List<ColumnProfile> profiles;
@@ -75,8 +78,8 @@ public class DatasetOrchestratorService {
             if (profiles.isEmpty()) {
                 throw new InvalidCsvException("No se detectaron columnas válidas en el encabezado del CSV.");
             }
-        } catch (IOException e) {
-            throw new InvalidCsvException("No se pudo leer o parsear el archivo CSV.", e);
+        } catch (IOException | IllegalArgumentException e) {
+            throw new InvalidCsvException("No se pudo leer o parsear el archivo CSV: formato inválido o corrupto.", e);
         }
 
         // Creación de la entidad padre Dataset

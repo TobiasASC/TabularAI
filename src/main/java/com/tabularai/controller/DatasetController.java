@@ -74,11 +74,14 @@ public class DatasetController {
     public ResponseEntity<Page<DatasetSummaryDto>> getAllDatasets(
             @Parameter(description = "Número de página (comienza en 0)")
             @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Cantidad de registros por página")
+            @Parameter(description = "Cantidad de registros por página (1 a 100)")
             @RequestParam(defaultValue = "10") int size) {
 
+        int safePage = Math.max(0, page);
+        int safeSize = Math.clamp(size, 1, 100);
+
         Page<DatasetSummaryDto> summaries = orchestratorService
-                .getAllDatasets(PageRequest.of(page, size))
+                .getAllDatasets(PageRequest.of(safePage, safeSize))
                 .map(DatasetSummaryDto::fromEntity);
 
         return ResponseEntity.ok(summaries);

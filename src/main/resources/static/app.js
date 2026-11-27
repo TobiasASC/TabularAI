@@ -2,6 +2,7 @@ const API_BASE = '/api/v1/datasets';
 
 // Estado actual en memoria del navegador
 let currentDatasetId = null;
+let cachedHistoryItems = [];
 
 // Referencias a elementos del DOM
 const uploadForm = document.getElementById('uploadForm');
@@ -11,6 +12,7 @@ const uploadBtn = document.getElementById('uploadBtn');
 
 const datasetHistoryList = document.getElementById('datasetHistoryList');
 const refreshHistoryBtn = document.getElementById('refreshHistoryBtn');
+const historySearchInput = document.getElementById('historySearchInput');
 
 const alertBox = document.getElementById('alertBox');
 const emptyState = document.getElementById('emptyState');
@@ -169,31 +171,54 @@ deleteDatasetBtn.addEventListener('click', async () => {
 
 refreshHistoryBtn.addEventListener('click', () => loadDatasetHistory());
 
+// Filtro instantáneo en el Historial de Datasets
+if (historySearchInput) {
+    historySearchInput.addEventListener('input', () => {
+        renderHistoryList();
+    });
+}
+
 // 4. Cargar historial paginado (GET /api/v1/datasets)
 async function loadDatasetHistory() {
     try {
-        const response = await fetch(`${API_BASE}?page=0&size=20`);
+        const response = await fetch(`${API_BASE}?page=0&size=50`);
         if (!response.ok) throw new Error('Error al cargar el historial.');
 
         const pageData = await response.json();
-        const items = pageData.content || [];
-
-        if (items.length === 0) {
-            datasetHistoryList.innerHTML = '<p class="muted-text">Aún no hay datasets cargados.</p>';
-            return;
-        }
-
-        datasetHistoryList.innerHTML = items.map(item => `
-            <div class="history-item ${item.id === currentDatasetId ? 'active' : ''}" onclick="selectDataset(${item.id})">
-                <div class="history-item-title">#${item.id} — ${escapeHtml(item.filename)}</div>
-                <div class="history-item-meta">
-                    ${item.rowCount} filas • ${item.columnCount} cols • ${formatDate(item.createdAt)}
-                </div>
-            </div>
-        `).join('');
+        cachedHistoryItems = pageData.content || [];
+        renderHistoryList();
     } catch (error) {
         datasetHistoryList.innerHTML = `<p class="muted-text">${escapeHtml(error.message)}</p>`;
     }
+}
+
+// Renderiza la lista del historial aplicando el filtro del buscador si hay texto escrito
+function renderHistoryList() {
+    if (cachedHistoryItems.length === 0) {
+        datasetHistoryList.innerHTML = '<p class="muted-text">Aún no hay datasets cargados.</p>';
+        return;
+    }
+
+    const query = historySearchInput ? historySearchInput.value.trim().toLowerCase() : '';
+    const filtered = cachedHistoryItems.filter(item => {
+        if (!query) return true;
+        const searchable = `#${item.id} ${item.filename} ${formatDate(item.createdAt)}`.toLowerCase();
+        return searchable.includes(query);
+    });
+
+    if (filtered.length === 0) {
+        datasetHistoryList.innerHTML = '<p class="muted-text">No hay datasets que coincidan con la búsqueda.</p>';
+        return;
+    }
+
+    datasetHistoryList.innerHTML = filtered.map(item => `
+        <div class="history-item ${item.id === currentDatasetId ? 'active' : ''}" onclick="selectDataset(${item.id})">
+            <div class="history-item-title">#${item.id} — ${escapeHtml(item.filename)}</div>
+            <div class="history-item-meta">
+                ${item.rowCount} filas • ${item.columnCount} cols • ${formatDate(item.createdAt)}
+            </div>
+        </div>
+    `).join('');
 }
 
 // 5. Cargar detalle completo de un dataset por ID (GET /api/v1/datasets/{id})
@@ -230,7 +255,23 @@ function renderDatasetDetail(dataset) {
     const reports = dataset.aiReports || [];
     detailReportCount.textContent = reports.length;
 
-    // Renderizar tabla de ColumnProfiles
+    // Renderizar tabla de ColumnProfiles (asegurando que el thead tenga las 11 columnas actualizadas)
+    const tableHeadRow = document.querySelector('.profiles-table thead tr');
+    if (tableHeadRow) {
+        tableHeadRow.innerHTML = `
+            <th>Columna</th>
+            <th>Tipo Inferido</th>
+            <th>Nulos</th>
+            <th>Únicos</th>
+            <th>Total (Suma)</th>
+            <th>Mínimo</th>
+            <th>Máximo</th>
+            <th>Promedio (Mean)</th>
+            <th>Mediana (Median)</th>
+            <th>Desv. Estándar</th>
+            <th>Top 5 Frecuencias</th>
+        `;
+    }
     if (columnSearchInput) columnSearchInput.value = '';
     const profiles = dataset.columnProfiles || [];
     profilesTableBody.innerHTML = profiles.map(col => `
@@ -239,10 +280,12 @@ function renderDatasetDetail(dataset) {
             <td><span class="type-pill type-${col.dataType}">${col.dataType}</span></td>
             <td>${col.nullCount}</td>
             <td>${col.uniqueCount}</td>
+            <td>${formatNumber(col.sumVal)}</td>
             <td>${formatNumber(col.minVal)}</td>
             <td>${formatNumber(col.maxVal)}</td>
             <td>${formatNumber(col.meanVal)}</td>
             <td>${formatNumber(col.medianVal)}</td>
+            <td>${formatNumber(col.stdDevVal)}</td>
             <td>${renderTopValues(col.topValues)}</td>
         </tr>
     `).join('');
